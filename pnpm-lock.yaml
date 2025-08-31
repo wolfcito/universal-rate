@@ -11,8 +11,8 @@ importers:
       '@coinbase/onchainkit':
         specifier: latest
         version: 0.38.19(@farcaster/miniapp-sdk@0.1.9(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))(@tanstack/query-core@5.85.6)(@types/react@18.3.24)(@upstash/redis@1.35.3)(bufferutil@4.0.9)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.9.2)(use-sync-external-store@1.4.0(react@18.3.1))(utf-8-validate@5.0.10)(zod@3.25.76)
-      '@farcaster/frame-sdk':
-        specifier: ^0.1.8
+      '@farcaster/miniapp-sdk':
+        specifier: ^0.1.9
         version: 0.1.9(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76)
       '@tanstack/react-query':
         specifier: ^5

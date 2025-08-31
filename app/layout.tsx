@@ -3,6 +3,7 @@ import "@coinbase/onchainkit/styles.css";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
+import BottomNav from "./components/BottomNav";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -43,7 +44,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-background">
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          {/* Bottom navigation across views */}
+          <BottomNav />
+        </Providers>
       </body>
     </html>
   );
