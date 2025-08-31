@@ -170,6 +170,20 @@ export function Home({ setActiveTab }: HomeProps) {
   const [showResults, setShowResults] = useState(false);
   const [isPreview, setIsPreview] = useState(false);
   const [isComposing, setIsComposing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [avgScore, setAvgScore] = useState<number | null>(null);
+  const [countRatings, setCountRatings] = useState<number>(0);
+  const [statsWindow, setStatsWindow] = useState<string>("7d");
+  const [toast, setToast] = useState<
+    | { type: "success" | "error"; message: string }
+    | null
+  >(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2500);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   useEffect(() => {
     // Reset results when editing
@@ -204,6 +218,7 @@ export function Home({ setActiveTab }: HomeProps) {
 
   const handleRateNow = async () => {
     try {
+      setIsSubmitting(true);
       const body: any = {
         category,
         score,
@@ -227,31 +242,43 @@ export function Home({ setActiveTab }: HomeProps) {
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || "Failed to rate");
 
-      // If API returns stats, prefer them over local mock
-      if (json?.stats?.average) {
-        // note: keep state values but override reveal figures
-        // You could store them in separate state; for simplicity, replace memos
+      // Capture stats from API to show real averages
+      if (json?.stats) {
+        setAvgScore(
+          typeof json.stats.average === "number" ? json.stats.average : null,
+        );
+        setCountRatings(typeof json.stats.count === "number" ? json.stats.count : 0);
+        setStatsWindow(typeof json.stats.window === "string" ? json.stats.window : "7d");
+      } else {
+        setAvgScore(null);
+        setCountRatings(0);
+        setStatsWindow("7d");
       }
       setIsPreview(false);
       setShowResults(true);
+      setToast({ type: "success", message: "Rating submitted successfully" });
     } catch (e) {
       console.error(e);
       // fallback to local reveal to keep UX flowing
       setIsPreview(false);
       setShowResults(true);
+      setToast({ type: "error", message: e instanceof Error ? e.message : "Failed to submit rating" });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleShare = useCallback(async () => {
     setIsComposing(true);
     try {
-      const text = `${handle} got rated ${score}/10 in ${category}. What do you think?`;
-      await sdk.actions.composeCast({
-        text,
-        // Optionally include a URL with fc:miniapp meta when available
-      });
+      const baseUrl = process.env.NEXT_PUBLIC_URL || (typeof window !== "undefined" ? window.location.origin : "");
+      const shareUrl = baseUrl ? `${baseUrl}` : ""; // URL has fc:frame meta in layout
+      const text = `${handle} got rated ${score}/10 in ${category}. What do you think? ${shareUrl}`;
+      await sdk.actions.composeCast({ text });
+      setToast({ type: "success", message: "Share composer opened" });
     } catch (e) {
       console.error(e);
+      setToast({ type: "error", message: "Failed to open share composer" });
     } finally {
       setIsComposing(false);
     }
@@ -347,7 +374,9 @@ export function Home({ setActiveTab }: HomeProps) {
               <ResultsCard
                 handle={handle}
                 score={score}
-                communityAverage={communityAverage}
+                average={avgScore ?? communityAverage}
+                count={countRatings}
+                window={statsWindow}
                 percentile={percentile}
                 onShare={handleShare}
                 onRateAnother={resetForm}
@@ -416,8 +445,8 @@ export function Home({ setActiveTab }: HomeProps) {
             </div>
 
             <div className="flex gap-2">
-              <Button onClick={handleRateNow} variant="primary">
-                Rate Now
+              <Button onClick={handleRateNow} variant="primary" disabled={isSubmitting}>
+                {isSubmitting ? "Rating…" : "Rate Now"}
               </Button>
               <Button onClick={handleAddMiniApp} variant="outline">
                 Add to Mini Apps
@@ -428,7 +457,9 @@ export function Home({ setActiveTab }: HomeProps) {
               <ResultsCard
                 handle={handle}
                 score={score}
-                communityAverage={communityAverage}
+                average={avgScore ?? communityAverage}
+                count={countRatings}
+                window={statsWindow}
                 percentile={percentile}
                 onShare={handleShare}
                 onRateAnother={resetForm}
@@ -441,6 +472,21 @@ export function Home({ setActiveTab }: HomeProps) {
 
       {/* Keep a simple transaction demo below for now */}
       <TransactionCard />
+      {toast && (
+        <div
+          role="status"
+          className={`fixed left-1/2 -translate-x-1/2 bottom-20 px-4 py-2 rounded-lg shadow-lg border text-sm ${
+            toast.type === "success"
+              ? "bg-green-600/90 border-green-500 text-white"
+              : "bg-red-600/90 border-red-500 text-white"
+          }`}
+          onAnimationEnd={() => {
+            // auto-hide after 2.5s
+          }}
+        >
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 }
@@ -448,7 +494,9 @@ export function Home({ setActiveTab }: HomeProps) {
 type ResultsCardProps = {
   handle: string;
   score: number;
-  communityAverage: number;
+  average: number; // community average
+  count: number; // number of ratings in window
+  window: string; // e.g., "7d"
   percentile: number;
   onShare: () => void;
   onRateAnother: () => void;
@@ -456,14 +504,15 @@ type ResultsCardProps = {
   isPreview?: boolean;
 };
 
-function ResultsCard({ handle, score, communityAverage, percentile, onShare, onRateAnother, composing = false, isPreview = false }: ResultsCardProps) {
+function ResultsCard({ handle, score, average, count, window, percentile, onShare, onRateAnother, composing = false, isPreview = false }: ResultsCardProps) {
   return (
     <Card title={isPreview ? "🎉 Vista previa de resultados" : "🎉 Resultados desbloqueados"}>
       <div className="space-y-3">
         <div className="flex items-center justify-between text-sm">
           <span>Tu rating: <strong>{score}/10</strong></span>
-          <span>Comunidad: <strong>{communityAverage}/10</strong> 📈</span>
+          <span>Comunidad: <strong>{average}/10</strong> 📈</span>
         </div>
+        <div className="text-sm text-[var(--app-foreground-muted)]">{count} ratings en {window}</div>
         <div className="text-sm text-[var(--app-foreground-muted)]">Tu percentil: {percentile}º</div>
         <div className="text-sm text-[var(--app-foreground-muted)]">
           Distribución (última semana): 10 ███████  9 █████  8 ████  7 ██ ← tú
