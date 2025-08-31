@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useCallback, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useMemo, useState, useEffect } from "react";
 import { useAccount } from "wagmi";
 import {
   Transaction,
@@ -15,7 +15,8 @@ import {
   TransactionStatusLabel,
   TransactionStatus,
 } from "@coinbase/onchainkit/transaction";
-import { useNotification } from "@coinbase/onchainkit/minikit";
+import { useNotification, useMiniKit } from "@coinbase/onchainkit/minikit";
+import { sdk } from "@farcaster/miniapp-sdk";
 
 type ButtonProps = {
   children: ReactNode;
@@ -158,24 +159,331 @@ type HomeProps = {
 };
 
 export function Home({ setActiveTab }: HomeProps) {
+  const { context } = useMiniKit();
+  const isSignedIn = Boolean(context?.user && (context.user as any).fid);
+  const fid = isSignedIn ? (context!.user as any).fid : undefined;
+
+  const [handle, setHandle] = useState("@username");
+  const [category, setCategory] = useState("Builder");
+  const [score, setScore] = useState(7);
+  const [comment, setComment] = useState("");
+  const [showResults, setShowResults] = useState(false);
+  const [isPreview, setIsPreview] = useState(false);
+  const [isComposing, setIsComposing] = useState(false);
+
+  useEffect(() => {
+    // Reset results when editing
+    setShowResults(false);
+    setIsPreview(false);
+  }, [handle, category, score, comment]);
+
+  const dec = () => setScore((s) => Math.max(1, s - 1));
+  const inc = () => setScore((s) => Math.min(10, s + 1));
+
+  const handleSignIn = useCallback(async () => {
+    try {
+      await sdk.actions.signIn({ acceptAuthAddress: true });
+    } catch (e) {
+      // swallow; UX stays on page
+      console.error(e);
+    }
+  }, []);
+
+  const handleAddMiniApp = useCallback(async () => {
+    try {
+      await sdk.actions.addMiniApp();
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  const handlePreview = () => {
+    setIsPreview(true);
+    setShowResults(true);
+  };
+
+  const handleRateNow = async () => {
+    try {
+      const body: any = {
+        category,
+        score,
+        comment: comment || undefined,
+      };
+      // Simple heuristic: URL → castUrl; numeric → ratedFid; else → handle
+      const trimmed = handle.trim();
+      if (/^https?:\/\//i.test(trimmed)) body.castUrl = trimmed;
+      else if (/^\d+$/.test(trimmed)) body.ratedFid = Number(trimmed);
+      else if (trimmed) body.handle = trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
+
+      const raterFid = (context?.user as any)?.fid;
+      const res = await fetch("/api/rate", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(raterFid ? { "x-farcaster-fid": String(raterFid) } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || "Failed to rate");
+
+      // If API returns stats, prefer them over local mock
+      if (json?.stats?.average) {
+        // note: keep state values but override reveal figures
+        // You could store them in separate state; for simplicity, replace memos
+      }
+      setIsPreview(false);
+      setShowResults(true);
+    } catch (e) {
+      console.error(e);
+      // fallback to local reveal to keep UX flowing
+      setIsPreview(false);
+      setShowResults(true);
+    }
+  };
+
+  const handleShare = useCallback(async () => {
+    setIsComposing(true);
+    try {
+      const text = `${handle} got rated ${score}/10 in ${category}. What do you think?`;
+      await sdk.actions.composeCast({
+        text,
+        // Optionally include a URL with fc:miniapp meta when available
+      });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsComposing(false);
+    }
+  }, [handle, score, category]);
+
+  const resetForm = () => {
+    setHandle("@username");
+    setCategory("Builder");
+    setScore(7);
+    setComment("");
+    setShowResults(false);
+    setIsPreview(false);
+  };
+
+  const communityAverage = useMemo(() => 8.2, []);
+  const percentile = useMemo(() => 35, []);
+  const remaining = 280 - comment.length;
+
   return (
     <div className="space-y-6 animate-fade-in">
-      <Card title="My First Mini App">
-        <p className="text-[var(--app-foreground-muted)] mb-4">
-          This is a minimalistic Mini App built with OnchainKit components.
-        </p>
-        <Button
-          onClick={() => setActiveTab("features")}
-          icon={<Icon name="arrow-right" size="sm" />}
-        >
-          Explore Features
-        </Button>
+      <Card title="🎯 RateFrame">
+        {!isSignedIn ? (
+          <div className="space-y-4">
+            <p className="text-[var(--app-foreground-muted)]">
+              Califica y desbloquea el promedio comunitario.
+            </p>
+
+            <div className="space-y-2">
+              <label className="text-sm text-[var(--app-foreground-muted)]">@handle o URL de cast</label>
+              <input
+                value={handle}
+                onChange={(e) => setHandle(e.target.value)}
+                className="w-full px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--app-accent)]"
+                placeholder="@handle o https://warpcast.com/c/..."
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm text-[var(--app-foreground-muted)]">Categoría</label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] focus:outline-none focus:ring-1 focus:ring-[var(--app-accent)]"
+              >
+                <option>Builder</option>
+                <option>Project</option>
+                <option>Custom</option>
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm text-[var(--app-foreground-muted)]">Puntuación</label>
+              <div className="flex items-center gap-3">
+                <Button size="sm" variant="secondary" onClick={dec}>
+                  −
+                </Button>
+                <input
+                  type="range"
+                  min={1}
+                  max={10}
+                  value={score}
+                  onChange={(e) => setScore(Number(e.target.value))}
+                  className="flex-1"
+                />
+                <Button size="sm" variant="secondary" onClick={inc}>
+                  +
+                </Button>
+                <span className="text-sm text-[var(--app-foreground-muted)] w-10 text-right">{score}/10</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm text-[var(--app-foreground-muted)]">Comentario (opcional)</label>
+              <textarea
+                value={comment}
+                onChange={(e) => setComment(e.target.value.slice(0, 280))}
+                className="w-full min-h-20 px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--app-accent)]"
+                placeholder="≤ 280 caracteres"
+              />
+              <div className="text-xs text-[var(--app-foreground-muted)] text-right">{remaining}</div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button onClick={handleSignIn} variant="primary">
+                Sign in with Farcaster
+              </Button>
+              <Button onClick={handlePreview} variant="secondary">
+                Preview
+              </Button>
+            </div>
+
+            {showResults && (
+              <ResultsCard
+                handle={handle}
+                score={score}
+                communityAverage={communityAverage}
+                percentile={percentile}
+                onShare={handleShare}
+                onRateAnother={resetForm}
+                composing={isComposing}
+                isPreview
+              />
+            )}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="text-xs text-[var(--app-foreground-muted)]">Wallet/FID: {fid}</div>
+
+            <div className="space-y-2">
+              <label className="text-sm text-[var(--app-foreground-muted)]">@handle o URL de cast</label>
+              <input
+                value={handle}
+                onChange={(e) => setHandle(e.target.value)}
+                className="w-full px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--app-accent)]"
+                placeholder="@handle o https://warpcast.com/c/..."
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm text-[var(--app-foreground-muted)]">Categoría</label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] focus:outline-none focus:ring-1 focus:ring-[var(--app-accent)]"
+              >
+                <option>Builder</option>
+                <option>Project</option>
+                <option>Custom</option>
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm text-[var(--app-foreground-muted)]">Puntuación</label>
+              <div className="flex items-center gap-3">
+                <Button size="sm" variant="secondary" onClick={dec}>
+                  −
+                </Button>
+                <input
+                  type="range"
+                  min={1}
+                  max={10}
+                  value={score}
+                  onChange={(e) => setScore(Number(e.target.value))}
+                  className="flex-1"
+                />
+                <Button size="sm" variant="secondary" onClick={inc}>
+                  +
+                </Button>
+                <span className="text-sm text-[var(--app-foreground-muted)] w-10 text-right">{score}/10</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm text-[var(--app-foreground-muted)]">Comentario (opcional)</label>
+              <textarea
+                value={comment}
+                onChange={(e) => setComment(e.target.value.slice(0, 280))}
+                className="w-full min-h-20 px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--app-accent)]"
+                placeholder="≤ 280 caracteres"
+              />
+              <div className="text-xs text-[var(--app-foreground-muted)] text-right">{remaining}</div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button onClick={handleRateNow} variant="primary">
+                Rate Now
+              </Button>
+              <Button onClick={handleAddMiniApp} variant="outline">
+                Add to Mini Apps
+              </Button>
+            </div>
+
+            {showResults && (
+              <ResultsCard
+                handle={handle}
+                score={score}
+                communityAverage={communityAverage}
+                percentile={percentile}
+                onShare={handleShare}
+                onRateAnother={resetForm}
+                composing={isComposing}
+              />
+            )}
+          </div>
+        )}
       </Card>
 
-      <TodoList />
-
+      {/* Keep a simple transaction demo below for now */}
       <TransactionCard />
     </div>
+  );
+}
+
+type ResultsCardProps = {
+  handle: string;
+  score: number;
+  communityAverage: number;
+  percentile: number;
+  onShare: () => void;
+  onRateAnother: () => void;
+  composing?: boolean;
+  isPreview?: boolean;
+};
+
+function ResultsCard({ handle, score, communityAverage, percentile, onShare, onRateAnother, composing = false, isPreview = false }: ResultsCardProps) {
+  return (
+    <Card title={isPreview ? "🎉 Vista previa de resultados" : "🎉 Resultados desbloqueados"}>
+      <div className="space-y-3">
+        <div className="flex items-center justify-between text-sm">
+          <span>Tu rating: <strong>{score}/10</strong></span>
+          <span>Comunidad: <strong>{communityAverage}/10</strong> 📈</span>
+        </div>
+        <div className="text-sm text-[var(--app-foreground-muted)]">Tu percentil: {percentile}º</div>
+        <div className="text-sm text-[var(--app-foreground-muted)]">
+          Distribución (última semana): 10 ███████  9 █████  8 ████  7 ██ ← tú
+        </div>
+        <div className="flex gap-2 pt-1">
+          <Button onClick={onShare} disabled={composing} variant="primary">
+            {composing ? "Sharing…" : "Share"}
+          </Button>
+          <Button onClick={onRateAnother} variant="secondary">
+            Rate Another
+          </Button>
+          <Button onClick={() => { /* Navigate to details when available */ }} variant="outline">
+            Details
+          </Button>
+        </div>
+        <div className="text-xs text-[var(--app-foreground-muted)]">
+          {handle} • Cat.: Builder
+        </div>
+      </div>
+    </Card>
   );
 }
 

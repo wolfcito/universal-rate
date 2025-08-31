@@ -42,6 +42,16 @@ export default function App() {
     }
   }, [setFrameReady, isFrameReady]);
 
+  // Notify Farcaster Mini App host that the app is ready (hide splash)
+  useEffect(() => {
+    // Best-effort; ignore if not in Mini App host
+    sdk.actions
+      .ready()
+      .catch(() => {
+        /* noop */
+      });
+  }, []);
+
   // Initialize tab from query param if present (?tab=features)
   useEffect(() => {
     const tab = searchParams?.get("tab");
