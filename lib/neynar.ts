@@ -79,3 +79,32 @@ export async function resolveTargetToFid(params: {
   return null;
 }
 
+export type NeynarUser = {
+  fid: number;
+  username?: string;
+  display_name?: string;
+  pfp_url?: string;
+};
+
+export async function getUserByFid(fid: number): Promise<NeynarUser | null> {
+  const cacheKey = `neynar:profile:fid:${fid}`;
+  try {
+    if (redis) {
+      const cached = await redis.get<NeynarUser>(cacheKey);
+      if (cached) return cached;
+    }
+  } catch {}
+
+  type Resp = { user?: { fid: number; username?: string; display_name?: string; pfp_url?: string } };
+  const data = await fetchJson<Resp>(`${NEYNAR_API}/user/by-fid?fid=${fid}`);
+  const u = data?.user;
+  if (!u) return null;
+  const user: NeynarUser = {
+    fid: u.fid,
+    username: u.username,
+    display_name: u.display_name,
+    pfp_url: u.pfp_url,
+  };
+  if (redis) await redis.set(cacheKey, user, { ex: 60 * 60 * 6 }); // 6h
+  return user;
+}
