@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode, useCallback, useMemo, useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAccount } from "wagmi";
 import {
   Transaction,
@@ -159,6 +160,8 @@ type HomeProps = {
 };
 
 export function Home({ setActiveTab }: HomeProps) {
+  const router = useRouter();
+  const search = useSearchParams();
   const { context } = useMiniKit();
   const isSignedIn = Boolean(context?.user && (context.user as any).fid);
   const fid = isSignedIn ? (context!.user as any).fid : undefined;
@@ -178,6 +181,7 @@ export function Home({ setActiveTab }: HomeProps) {
     | { type: "success" | "error"; message: string }
     | null
   >(null);
+  const [detailsHref, setDetailsHref] = useState<string | null>(null);
 
   useEffect(() => {
     if (!toast) return;
@@ -190,6 +194,17 @@ export function Home({ setActiveTab }: HomeProps) {
     setShowResults(false);
     setIsPreview(false);
   }, [handle, category, score, comment]);
+
+  // Prefill handle from query (?handle=...) e.g., from Rate Back
+  useEffect(() => {
+    const h = search?.get("handle");
+    if (!h) return;
+    const trimmed = h.trim();
+    const val = /^@/.test(trimmed) || /^\d+$/.test(trimmed) || /^https?:\/\//i.test(trimmed)
+      ? trimmed
+      : `@${trimmed}`;
+    setHandle(val);
+  }, [search]);
 
   const dec = () => setScore((s) => Math.max(1, s - 1));
   const inc = () => setScore((s) => Math.min(10, s + 1));
@@ -254,8 +269,22 @@ export function Home({ setActiveTab }: HomeProps) {
         setCountRatings(0);
         setStatsWindow("7d");
       }
+      if (json?.rating?.id) setDetailsHref(`/rating/${json.rating.id}`);
       setIsPreview(false);
       setShowResults(true);
+
+      // Navigate to dedicated results page with details
+      const q = new URLSearchParams({
+        handle,
+        category,
+        score: String(score),
+        average: json?.stats?.average ? String(json.stats.average) : "",
+        count: json?.stats?.count ? String(json.stats.count) : "0",
+        window: json?.stats?.window || "7d",
+      });
+      if (json?.rating?.rated_fid) q.set("ratedFid", String(json.rating.rated_fid));
+      if (json?.rating?.id) q.set("id", String(json.rating.id));
+      router.push(`/results?${q.toString()}`);
       setToast({ type: "success", message: "Rating submitted successfully" });
     } catch (e) {
       console.error(e);
@@ -382,6 +411,7 @@ export function Home({ setActiveTab }: HomeProps) {
                 onRateAnother={resetForm}
                 composing={isComposing}
                 isPreview
+                detailsHref={detailsHref || undefined}
               />
             )}
           </div>
@@ -502,9 +532,10 @@ type ResultsCardProps = {
   onRateAnother: () => void;
   composing?: boolean;
   isPreview?: boolean;
+  detailsHref?: string;
 };
 
-function ResultsCard({ handle, score, average, count, window, percentile, onShare, onRateAnother, composing = false, isPreview = false }: ResultsCardProps) {
+function ResultsCard({ handle, score, average, count, window, percentile, onShare, onRateAnother, composing = false, isPreview = false, detailsHref }: ResultsCardProps) {
   return (
     <Card title={isPreview ? "🎉 Vista previa de resultados" : "🎉 Resultados desbloqueados"}>
       <div className="space-y-3">
@@ -524,9 +555,11 @@ function ResultsCard({ handle, score, average, count, window, percentile, onShar
           <Button onClick={onRateAnother} variant="secondary">
             Rate Another
           </Button>
-          <Button onClick={() => { /* Navigate to details when available */ }} variant="outline">
-            Details
-          </Button>
+          {detailsHref && (
+            <a href={detailsHref} className="inline-flex">
+              <Button variant="outline">Details</Button>
+            </a>
+          )}
         </div>
         <div className="text-xs text-[var(--app-foreground-muted)]">
           {handle} • Cat.: Builder

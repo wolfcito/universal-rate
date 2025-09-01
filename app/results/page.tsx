@@ -35,6 +35,7 @@ export default function ResultsPage() {
   const countParam = params.get("count");
   const windowParam = params.get("window") || "7d";
   const ratedFid = params.get("ratedFid");
+  const id = params.get("id");
 
   const [average, setAverage] = useState<number | null>(avgParam ? Number(avgParam) : null);
   const [count, setCount] = useState<number>(countParam ? Number(countParam) : 0);
@@ -129,7 +130,7 @@ export default function ResultsPage() {
                 <Button onClick={handleRateAnother} variant="secondary">
                   Rate Another
                 </Button>
-                <Button onClick={() => { /* placeholder for details route */ }} variant="outline">
+                <Button onClick={() => id && router.push(`/rating/${id}`)} variant="outline" disabled={!id}>
                   Details
                 </Button>
               </div>
@@ -164,4 +165,3 @@ export default function ResultsPage() {
     </div>
   );
 }
-

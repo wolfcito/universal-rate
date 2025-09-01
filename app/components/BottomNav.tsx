@@ -41,6 +41,9 @@ export default function BottomNav() {
         <Link href="/profile" className={linkCls(pathname?.startsWith("/profile") ?? false)}>
           Profile
         </Link>
+        <Link href="/leaderboard" className={linkCls(pathname?.startsWith("/leaderboard") ?? false)}>
+          Leaderboard
+        </Link>
         {canShowAdd && (
           <button
             type="button"

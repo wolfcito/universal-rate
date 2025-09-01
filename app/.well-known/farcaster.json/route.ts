@@ -1,43 +1,24 @@
-function withValidProperties(
-  properties: Record<string, undefined | string | string[]>,
-) {
-  return Object.fromEntries(
-    Object.entries(properties).filter(([key, value]) => {
-      if (Array.isArray(value)) {
-        return value.length > 0;
-      }
-      return !!value;
-    }),
-  );
-}
+import { NextResponse } from "next/server";
+
+export const runtime = "nodejs";
 
 export async function GET() {
-  const URL = process.env.NEXT_PUBLIC_URL;
+  const homeUrl = process.env.NEXT_PUBLIC_URL || "";
+  const iconUrl =
+    process.env.NEXT_PUBLIC_APP_ICON ||
+    process.env.NEXT_PUBLIC_ICON_URL ||
+    (homeUrl ? new URL("/icon.png", homeUrl).toString() : "/icon.png");
+  const webhookUrl = process.env.NEXT_PUBLIC_WEBHOOK_URL || (homeUrl ? new URL("/api/webhook", homeUrl).toString() : undefined);
 
-  return Response.json({
-    accountAssociation: {
-      header: process.env.FARCASTER_HEADER,
-      payload: process.env.FARCASTER_PAYLOAD,
-      signature: process.env.FARCASTER_SIGNATURE,
-    },
-    frame: withValidProperties({
+  const body: any = {
+    miniapp: {
       version: "1",
-      name: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME,
-      subtitle: process.env.NEXT_PUBLIC_APP_SUBTITLE,
-      description: process.env.NEXT_PUBLIC_APP_DESCRIPTION,
-      screenshotUrls: [],
-      iconUrl: process.env.NEXT_PUBLIC_APP_ICON,
-      splashImageUrl: process.env.NEXT_PUBLIC_APP_SPLASH_IMAGE,
-      splashBackgroundColor: process.env.NEXT_PUBLIC_SPLASH_BACKGROUND_COLOR,
-      homeUrl: URL,
-      webhookUrl: `${URL}/api/webhook`,
-      primaryCategory: process.env.NEXT_PUBLIC_APP_PRIMARY_CATEGORY,
-      tags: [],
-      heroImageUrl: process.env.NEXT_PUBLIC_APP_HERO_IMAGE,
-      tagline: process.env.NEXT_PUBLIC_APP_TAGLINE,
-      ogTitle: process.env.NEXT_PUBLIC_APP_OG_TITLE,
-      ogDescription: process.env.NEXT_PUBLIC_APP_OG_DESCRIPTION,
-      ogImageUrl: process.env.NEXT_PUBLIC_APP_OG_IMAGE,
-    }),
-  });
+      homeUrl,
+      iconUrl,
+    },
+  };
+  if (webhookUrl) body.miniapp.webhookUrl = webhookUrl;
+
+  return NextResponse.json(body);
 }
+
