@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { useMiniKit, useAddFrame } from "@coinbase/onchainkit/minikit";
+import { Icon } from "../components/DemoComponents";
 
 type Entry = {
   rated_fid: number;
@@ -19,6 +20,15 @@ export default function LeaderboardPage() {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<Entry[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const { context } = useMiniKit();
+  const addFrame = useAddFrame();
+  const [frameAdded, setFrameAdded] = useState(false);
+
+  const canShowAdd = useMemo(() => Boolean(context && !context.client?.added), [context]);
+  const handleAdd = useCallback(async () => {
+    const res = await addFrame();
+    setFrameAdded(Boolean(res));
+  }, [addFrame]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -44,7 +54,17 @@ export default function LeaderboardPage() {
     <div className="w-full max-w-md mx-auto px-4 py-6 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold">🏆 Leaderboard</h1>
-        <Link href="/" className="text-xs text-[var(--ock-text-foreground-muted)] hover:underline">Home</Link>
+        {canShowAdd && !frameAdded && (
+          <button
+            type="button"
+            onClick={handleAdd}
+            className="p-2 text-[var(--app-accent)]"
+            aria-label="Add Mini App"
+            title="Add Mini App"
+          >
+            <Icon name="star" />
+          </button>
+        )}
       </div>
 
       <div className="flex gap-2">

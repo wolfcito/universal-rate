@@ -8,6 +8,13 @@ import {
   useOpenUrl,
 } from "@coinbase/onchainkit/minikit";
 import { Button, Icon } from "../components/DemoComponents";
+import {
+  Wallet,
+  ConnectWallet,
+  WalletDropdown,
+  WalletDropdownDisconnect,
+} from "@coinbase/onchainkit/wallet";
+import { Name, Identity, Avatar, Address, EthBalance } from "@coinbase/onchainkit/identity";
 
 // Profile view for Farcaster Mini App (MiniKit)
 // - Uses MiniKit context for user identity when available
@@ -46,9 +53,9 @@ export default function ProfilePage() {
           size="sm"
           onClick={handleAddFrame}
           className="text-[var(--app-accent)] p-4"
-          icon={<Icon name="plus" size="sm" />}
+          icon={<Icon name="star" size="md" />}
         >
-          Save Frame
+          <span className="sr-only">Save Frame</span>
         </Button>
       );
     }
@@ -94,10 +101,22 @@ export default function ProfilePage() {
     <div className="flex flex-col min-h-screen font-sans text-[var(--app-foreground)] mini-app-theme from-[var(--app-background)] to-[var(--app-gray)]">
       <div className="w-full max-w-md mx-auto px-4 py-3">
         <header className="flex justify-between items-center mb-3 h-11">
-          <div>
-            <div className="flex items-center space-x-2">
-              <h1 className="text-base font-semibold">Profile</h1>
-            </div>
+          <div className="flex items-center space-x-3">
+            <h1 className="text-base font-semibold">Profile</h1>
+            <Wallet className="z-10">
+              <ConnectWallet>
+                <Name className="text-inherit" />
+              </ConnectWallet>
+              <WalletDropdown>
+                <Identity className="px-4 pt-3 pb-2" hasCopyAddressOnClick>
+                  <Avatar />
+                  <Name />
+                  <Address />
+                  <EthBalance />
+                </Identity>
+                <WalletDropdownDisconnect />
+              </WalletDropdown>
+            </Wallet>
           </div>
           <div>{saveFrameButton}</div>
         </header>
@@ -171,4 +190,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
