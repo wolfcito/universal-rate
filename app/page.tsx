@@ -130,7 +130,7 @@ export default function App() {
             className="text-[var(--ock-text-foreground-muted)] text-xs"
             onClick={() => openUrl("https://base.org/builders/minikit")}
           >
-            Built on Base with MiniKit
+            Built on Base - Wolf&apos;s Den
           </Button>
         </footer>
       </div>
