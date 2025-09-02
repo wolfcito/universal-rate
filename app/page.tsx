@@ -73,9 +73,9 @@ export default function App() {
           size="sm"
           onClick={handleAddFrame}
           className="text-[var(--app-accent)] p-4"
-          icon={<Icon name="plus" size="sm" />}
+          icon={<Icon name="star" size="md" />}
         >
-          Add Mini App
+          <span className="sr-only">Add Mini App</span>
         </Button>
       );
     }

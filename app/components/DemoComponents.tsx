@@ -498,9 +498,6 @@ export function Home({ setActiveTab }: HomeProps) {
               <Button onClick={handleRateNow} variant="primary" disabled={isSubmitting}>
                 {isSubmitting ? "Rating…" : "Rate Now"}
               </Button>
-              <Button onClick={handleAddMiniApp} variant="outline">
-                Add to Mini Apps
-              </Button>
             </div>
 
             {showResults && (
