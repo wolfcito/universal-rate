@@ -9,10 +9,18 @@ function getApiKey(): string {
 }
 
 async function fetchJson<T>(url: string): Promise<T> {
-  const res = await fetch(url, {
+  const key = getApiKey();
+  const hasQuery = url.includes("?");
+  const hasApiKeyParam = /[?&]api_key=/.test(url);
+  const finalUrl = hasApiKeyParam ? url : `${url}${hasQuery ? "&" : "?"}api_key=${encodeURIComponent(key)}`;
+
+  const res = await fetch(finalUrl, {
     headers: {
-      "accept": "application/json",
-      "api-key": getApiKey(),
+      accept: "application/json",
+      // Try multiple common header variants just in case
+      "api-key": key,
+      "api_key": key as unknown as any,
+      "x-api-key": key as unknown as any,
     },
     cache: "no-store",
   });
@@ -44,6 +52,27 @@ export async function resolveHandleToFid(handle: string): Promise<number | null>
 }
 
 export async function resolveCastUrlToAuthorFid(url: string): Promise<number | null> {
+  // Gate paid endpoint behind env flag; default off for free plan UX
+  if (process.env.NEYNAR_ALLOW_CAST_URL !== "1") {
+    return null;
+  }
+  // Fast path: parse Warpcast URL to extract username and resolve via by-username (likely on free tier)
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes("warpcast.com")) {
+      const segs = u.pathname.split("/").filter(Boolean);
+      if (segs.length >= 1) {
+        const username = segs[0];
+        if (username && username !== "~") {
+          const viaHandle = await resolveHandleToFid(username.startsWith("@") ? username : `@${username}`);
+          if (viaHandle) return viaHandle;
+        }
+      }
+    }
+  } catch {
+    // Ignore parse errors, fall back to API
+  }
+
   const cacheKey = `neynar:fid:casturl:${url}`;
   try {
     if (redis) {
@@ -53,12 +82,20 @@ export async function resolveCastUrlToAuthorFid(url: string): Promise<number | n
   } catch {}
 
   type CastResp = { cast?: { author?: { fid?: number } } };
-  const data = await fetchJson<CastResp>(
-    `${NEYNAR_API}/cast?identifier=${encodeURIComponent(url)}&type=url`,
-  );
-  const fid = data?.cast?.author?.fid;
-  if (fid && redis) await redis.set(cacheKey, fid, { ex: 60 * 60 * 12 });
-  return fid ?? null;
+  try {
+    const data = await fetchJson<CastResp>(
+      `${NEYNAR_API}/cast?identifier=${encodeURIComponent(url)}&type=url`,
+    );
+    const fid = data?.cast?.author?.fid;
+    if (fid && redis) await redis.set(cacheKey, fid, { ex: 60 * 60 * 12 });
+    return fid ?? null;
+  } catch (e: any) {
+    // If plan doesn't allow this endpoint, just return null to let caller decide UX
+    if (typeof e?.message === "string" && e.message.includes("PaymentRequired")) {
+      return null;
+    }
+    throw e;
+  }
 }
 
 export async function resolveTargetToFid(params: {

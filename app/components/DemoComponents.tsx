@@ -239,10 +239,28 @@ export function Home({ setActiveTab }: HomeProps) {
         score,
         comment: comment || undefined,
       };
-      // Simple heuristic: URL → castUrl; numeric → ratedFid; else → handle
+      // Heuristic:
+      // - Warpcast profile URL → ratedFid (parse)
+      // - cast URL → show toast (coming soon) and abort unless explicitly enabled
+      // - numeric → ratedFid
+      // - else → handle
       const trimmed = handle.trim();
-      if (/^https?:\/\//i.test(trimmed)) body.castUrl = trimmed;
-      else if (/^\d+$/.test(trimmed)) body.ratedFid = Number(trimmed);
+      if (/^https?:\/\//i.test(trimmed)) {
+        try {
+          const u = new URL(trimmed);
+          const segs = u.pathname.split("/").filter(Boolean);
+          const isProfile = segs.length >= 3 && segs[0] === "~" && segs[1] === "profiles" && /^\d+$/.test(segs[2] ?? "");
+          if (isProfile) {
+            body.ratedFid = Number(segs[2]);
+          } else {
+            setToast({ type: "error", message: "Cast URL no soportada aún. Usa @handle o URL de perfil." });
+            return; // abort without showing results
+          }
+        } catch {
+          setToast({ type: "error", message: "URL inválida. Usa @handle, FID o URL de perfil." });
+          return;
+        }
+      } else if (/^\d+$/.test(trimmed)) body.ratedFid = Number(trimmed);
       else if (trimmed) body.handle = trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
 
       const raterFid = (context?.user as any)?.fid;
@@ -336,13 +354,14 @@ export function Home({ setActiveTab }: HomeProps) {
             </p>
 
             <div className="space-y-2">
-              <label className="text-sm text-[var(--app-foreground-muted)]">@handle o URL de cast</label>
+              <label className="text-sm text-[var(--app-foreground-muted)]">@handle, FID o URL de perfil</label>
               <input
                 value={handle}
                 onChange={(e) => setHandle(e.target.value)}
                 className="w-full px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--app-accent)]"
-                placeholder="@handle o https://warpcast.com/c/..."
+                placeholder="@dwr • 12345 • https://warpcast.com/~/profiles/12345"
               />
+              <div className="text-xs text-[var(--app-foreground-muted)] mt-1">cast url coming soon</div>
             </div>
 
             <div className="space-y-2">
@@ -420,13 +439,14 @@ export function Home({ setActiveTab }: HomeProps) {
             <div className="text-xs text-[var(--app-foreground-muted)]">Wallet/FID: {fid}</div>
 
             <div className="space-y-2">
-              <label className="text-sm text-[var(--app-foreground-muted)]">@handle o URL de cast</label>
+              <label className="text-sm text-[var(--app-foreground-muted)]">@handle, FID o URL de perfil</label>
               <input
                 value={handle}
                 onChange={(e) => setHandle(e.target.value)}
                 className="w-full px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--app-accent)]"
-                placeholder="@handle o https://warpcast.com/c/..."
+                placeholder="@dwr • 12345 • https://warpcast.com/~/profiles/12345"
               />
+              <div className="text-xs text-[var(--app-foreground-muted)] mt-1">cast url coming soon</div>
             </div>
 
             <div className="space-y-2">

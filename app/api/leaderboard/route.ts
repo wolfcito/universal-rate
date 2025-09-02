@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase";
-import { getUserByFid } from "@/lib/neynar";
+import { getUserByFid } from "@/lib/warpcast";
 
 export const runtime = "nodejs";
 
@@ -58,4 +58,3 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: e?.message || "Unexpected error" }, { status: 500 });
   }
 }
-

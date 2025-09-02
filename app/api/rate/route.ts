@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 export const runtime = "nodejs"; // ensure Node runtime for supabase-js
 import { getSupabaseServer } from "@/lib/supabase";
-import { resolveTargetToFid } from "@/lib/neynar";
+import { resolveCastUrlToAuthorFid } from "@/lib/neynar";
+import { getFidByUsername } from "@/lib/warpcast";
 
 type PostBody = {
   ratedFid?: number; // optional (if provided, no resolution needed)
@@ -47,12 +48,24 @@ export async function POST(req: NextRequest) {
     const comment = body.comment?.slice(0, 280) ?? null;
     const cast_url = body.castUrl ?? null;
 
-    // Resolve target FID from one of: ratedFid | castUrl | handle
-    const targetFid = await resolveTargetToFid({
-      ratedFid: body.ratedFid,
-      castUrl: body.castUrl ?? null,
-      handle: body.handle ?? null,
-    });
+    // If client provided castUrl but feature is disabled, return a clear message
+    if (cast_url && process.env.NEYNAR_ALLOW_CAST_URL !== "1") {
+      return NextResponse.json(
+        { error: "Cast URL resolution is not available on the free plan. Please provide @handle or ratedFid." },
+        { status: 400 },
+      );
+    }
+
+    // Resolve target FID (preferred: numeric ratedFid -> Warpcast by username -> castUrl if enabled)
+    let targetFid: number | null = null;
+    if (typeof body.ratedFid === "number" && !Number.isNaN(body.ratedFid)) {
+      targetFid = Number(body.ratedFid);
+    } else if (typeof body.handle === "string" && body.handle.trim()) {
+      const username = body.handle.replace(/^@+/, "").trim();
+      targetFid = await getFidByUsername(username);
+    } else if (body.castUrl && process.env.NEYNAR_ALLOW_CAST_URL === "1") {
+      targetFid = await resolveCastUrlToAuthorFid(body.castUrl);
+    }
     if (!targetFid) {
       return NextResponse.json(
         { error: "Unable to resolve rated user. Provide ratedFid, handle, or castUrl." },
