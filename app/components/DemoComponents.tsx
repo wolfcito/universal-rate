@@ -286,6 +286,7 @@ export function Home({}: HomeProps) {
       });
       if (json?.rating?.rated_fid) q.set("ratedFid", String(json.rating.rated_fid));
       if (json?.rating?.id) q.set("id", String(json.rating.id));
+      if (json?.ratedEth) q.set("ratedEth", String(json.ratedEth));
       router.push(`/results?${q.toString()}`);
       setToast({ type: "success", message: "Rating submitted successfully" });
     } catch (e) {

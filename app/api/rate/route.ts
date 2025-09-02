@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 export const runtime = "nodejs"; // ensure Node runtime for supabase-js
 import { getSupabaseServer } from "@/lib/supabase";
 import { resolveCastUrlToAuthorFid } from "@/lib/neynar";
-import { getFidByUsername } from "@/lib/warpcast";
+import { getFidByUsername, getUserByFid, type WarpcastVerification } from "@/lib/warpcast";
 
 type PostBody = {
   ratedFid?: number; // optional (if provided, no resolution needed)
@@ -107,17 +107,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return NextResponse.json(
-      {
-        rating: inserted,
-        stats: {
-          average: agg?.avg ?? null,
-          count: agg?.count ?? 0,
-          window: "7d",
-        },
+    // Try enrich rated user's ETH address (primary verification -> any ETH -> custody)
+    let ratedEth: string | null = null;
+    try {
+      const profile = await getUserByFid(Number(targetFid));
+      const ver: WarpcastVerification[] = (profile?.verifications || []) as WarpcastVerification[];
+      const primaryEth = ver.find((v) => (v.protocol || "").toLowerCase() === "ethereum" && v.isPrimary);
+      const anyEth = ver.find((v) => (v.protocol || "").toLowerCase() === "ethereum");
+      ratedEth = primaryEth?.address || anyEth?.address || profile?.custody_address || null;
+    } catch {}
+
+    return NextResponse.json({
+      rating: inserted,
+      stats: {
+        average: agg?.avg ?? null,
+        count: agg?.count ?? 0,
+        window: "7d",
       },
-      { status: 201 },
-    );
+      ratedEth,
+    }, { status: 201 });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Unexpected error";
     return NextResponse.json({ error: message }, { status: 500 });

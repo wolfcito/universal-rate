@@ -1,15 +1,17 @@
 "use client";
 
 import { type ReactNode } from "react";
-import { base } from "wagmi/chains";
+import { base, baseSepolia } from "wagmi/chains";
 import { MiniKitProvider } from "@coinbase/onchainkit/minikit";
 import AppReady from "./components/AppReady";
 
 export function Providers(props: { children: ReactNode }) {
+  const chainName = process.env.NEXT_PUBLIC_CHAIN?.toLowerCase();
+  const chain = chainName === "base-sepolia" ? baseSepolia : base;
   return (
     <MiniKitProvider
       apiKey={process.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY}
-      chain={base}
+      chain={chain}
       config={{
         appearance: {
           mode: "auto",

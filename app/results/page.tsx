@@ -10,6 +10,8 @@ import {
   WalletDropdownDisconnect,
 } from "@coinbase/onchainkit/wallet";
 import { Name, Identity, Avatar, Address, EthBalance } from "@coinbase/onchainkit/identity";
+import { Transaction, TransactionButton, TransactionStatus, TransactionStatusLabel } from "@coinbase/onchainkit/transaction";
+import { encodeFunctionData, keccak256, toBytes } from "viem";
 import { Button } from "../components/DemoComponents";
 
 function Card({ title, children }: { title?: string; children: React.ReactNode }) {
@@ -35,6 +37,8 @@ function ResultsPageInner() {
   const countParam = params.get("count");
   const windowParam = params.get("window") || "7d";
   const ratedFid = params.get("ratedFid");
+  const ratedEthParam = params.get("ratedEth");
+  const [ratedEth, setRatedEth] = useState<string | null>(ratedEthParam);
   const id = params.get("id");
 
   const [average, setAverage] = useState<number | null>(avgParam ? Number(avgParam) : null);
@@ -42,6 +46,45 @@ function ResultsPageInner() {
   const [statsWindow, setStatsWindow] = useState<string>(windowParam);
   const percentile = useMemo(() => 35, []);
   const [toast, setToast] = useState<null | { type: "success" | "error"; message: string }>(null);
+  const rateLogAddress = process.env.NEXT_PUBLIC_RATELOG_ADDRESS as `0x${string}` | undefined;
+
+  const recordCall = useMemo(() => {
+    try {
+      if (!rateLogAddress || !ratedEth) return null;
+      const abi = [{
+        type: "function",
+        name: "recordRating",
+        stateMutability: "payable",
+        inputs: [
+          { name: "rated", type: "address" },
+          { name: "score", type: "uint8" },
+          { name: "category", type: "bytes32" },
+          { name: "commentHash", type: "bytes32" },
+        ],
+        outputs: [],
+      }] as const;
+      const categoryHash = keccak256(toBytes(category));
+      const commentHash = keccak256(toBytes((params.get("comment") || "").slice(0, 280)));
+      const data = encodeFunctionData({
+        abi,
+        functionName: "recordRating",
+        args: [ratedEth as `0x${string}`, Number(score) as any, categoryHash, commentHash],
+      });
+      return [{ to: rateLogAddress, data, value: BigInt(0) }];
+    } catch {
+      return null;
+    }
+  }, [rateLogAddress, ratedEth, category, score, params]);
+
+  useEffect(() => {
+    if (!ratedEth && ratedFid) {
+      fetch(`/api/address/${ratedFid}`).then(async (r) => ({ ok: r.ok, json: await r.json() }))
+        .then(({ ok, json }) => {
+          if (!ok) return;
+          if (json?.eth) setRatedEth(json.eth);
+        }).catch(() => {});
+    }
+  }, [ratedEth, ratedFid]);
 
   // ready() handled globally in AppReady
 
@@ -121,17 +164,25 @@ function ResultsPageInner() {
               <div className="text-sm text-[var(--app-foreground-muted)]">
                 Distribución (última semana): 10 ███████  9 █████  8 ████  7 ██ ← tú
               </div>
-              <div className="flex gap-2 pt-1">
-                <Button onClick={handleShare} variant="primary">
-                  Share
-                </Button>
-                <Button onClick={handleRateAnother} variant="secondary">
-                  Rate Another
-                </Button>
-                <Button onClick={() => id && router.push(`/rating/${id}`)} variant="outline" disabled={!id}>
-                  Details
-                </Button>
-              </div>
+          <div className="flex gap-2 pt-1">
+            <Button onClick={handleShare} variant="primary">
+              Share
+            </Button>
+            <Button onClick={handleRateAnother} variant="secondary">
+              Rate Another
+            </Button>
+            {recordCall && (
+              <Transaction calls={recordCall}>
+                <TransactionButton className="text-xs px-2 py-1" text="Publish Proof" />
+                <TransactionStatus>
+                  <TransactionStatusLabel />
+                </TransactionStatus>
+              </Transaction>
+            )}
+            <Button onClick={() => id && router.push(`/rating/${id}`)} variant="outline" disabled={!id}>
+              Details
+            </Button>
+          </div>
               <div className="text-xs text-[var(--app-foreground-muted)]">
                 {handle} • Cat.: {category}
               </div>
