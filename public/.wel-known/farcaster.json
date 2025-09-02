@@ -1,0 +1,21 @@
+{
+  "frame": {
+    "name": "Universal Rate",
+    "version": "1",
+    "iconUrl": "https://universal-rate.vercel.app/icon.jpeg",
+    "homeUrl": "https://universal-rate.vercel.app",
+    "imageUrl": "https://universal-rate.vercel.app/image.png",
+    "buttonTitle": "Notch",
+    "splashImageUrl": "https://universal-rate.vercel.app/splash.png",
+    "splashBackgroundColor": "#ffffff",
+    "webhookUrl": "https://universal-rate.vercel.app/api/webhook",
+    "subtitle": "Grow your reputation",
+    "description": "Rate → Unlock → Share → Rise. Build real reputation weekly.",
+    "primaryCategory": "social"
+  },
+  "accountAssociation": {
+    "header": "eyJmaWQiOjQ2NjA3MCwidHlwZSI6ImF1dGgiLCJrZXkiOiIweDY3MWYxODg3MjQ3NGIwMmYzMkMxNjQzRWRGODUxMGJFNmYyYmI0OTAifQ",
+    "payload": "eyJkb21haW4iOiJ1bml2ZXJzYWwtcmF0ZS52ZXJjZWwuYXBwIn0",
+    "signature": "kkZr1CXUjo9UDW/OxuryGMz01dusXWR4IzmU2P4wi58rIfQMLM/kWXf6aI+2NLxM+YcK0I8xI5NRYtbdQE/glBw="
+  }
+}
