@@ -56,8 +56,9 @@ export async function getUserByFid(fid: number): Promise<WarpcastUser | null> {
       const cached = await redis.get<WarpcastUser>(cacheKey);
       if (cached) {
         // If cached verifications are missing or in legacy format (string[]), enrich/upgrade from API
-        const needsUpgrade = Array.isArray(cached.verifications) && cached.verifications.length > 0 && typeof (cached.verifications[0] as any) === 'string';
-        const hasAny = Array.isArray(cached.verifications) && cached.verifications.length > 0 && typeof (cached.verifications[0] as any) === 'object';
+        const first = (cached.verifications as unknown[] | undefined)?.[0];
+        const needsUpgrade = Array.isArray(cached.verifications) && typeof first === "string";
+        const hasAny = Array.isArray(cached.verifications) && typeof first === "object" && first !== null;
         if (!hasAny || needsUpgrade) {
           try {
             const vers = await getVerificationsByFid(fid);
@@ -92,7 +93,11 @@ export async function getUserByFid(fid: number): Promise<WarpcastUser | null> {
     display_name: u.displayName,
     pfp_url: u.pfp?.url,
     custody_address: u.custodyAddress ?? null,
-    verifications: Array.isArray(u.verifications) ? u.verifications : [],
+    verifications: Array.isArray(u.verifications)
+      ? u.verifications
+          .filter((addr): addr is string => typeof addr === "string" && !!addr)
+          .map((addr) => ({ address: addr }))
+      : [],
   };
   try {
     // Enrich with explicit verifications endpoint(s)

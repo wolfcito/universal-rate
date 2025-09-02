@@ -1,15 +1,16 @@
 import { getSupabaseServer } from "@/lib/supabase";
+import Link from "next/link";
 import RatingDetailClient from "@/app/components/RatingDetailClient";
 
 type Props = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
 export const runtime = "nodejs";
 
 export default async function RatingDetailPage({ params }: Props) {
+  const { id } = await params;
   const supabase = getSupabaseServer();
-  const id = params.id;
 
   const { data, error } = await supabase
     .from("ratings")
@@ -55,11 +56,10 @@ export default async function RatingDetailPage({ params }: Props) {
         </div>
       </div>
       <div className="flex justify-center">
-        <a href="/" className="text-xs text-[var(--ock-text-foreground-muted)] hover:underline">
+        <Link href="/" className="text-xs text-[var(--ock-text-foreground-muted)] hover:underline">
           Back to Home
-        </a>
+        </Link>
       </div>
     </div>
   );
 }
-

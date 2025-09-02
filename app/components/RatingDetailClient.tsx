@@ -30,7 +30,7 @@ export default function RatingDetailClient({ ratedFid, raterFid, category, score
       const text = `${who} got rated ${score}/10 in ${category}. ${comment ? `“${comment}” ` : ""}${shareUrl}`;
       await sdk.actions.composeCast({ text });
       setToast({ type: "success", message: "Share composer opened" });
-    } catch (e) {
+    } catch {
       setToast({ type: "error", message: "Failed to open share composer" });
     }
   }, [ratedFid, score, category, comment, handleLabel]);
@@ -66,4 +66,3 @@ export default function RatingDetailClient({ ratedFid, raterFid, category, score
     </div>
   );
 }
-

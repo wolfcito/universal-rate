@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   useMiniKit,
@@ -21,7 +21,7 @@ import { Name, Identity, Avatar, Address, EthBalance } from "@coinbase/onchainki
 // - Provides "Save Frame" CTA and external profile open
 // - Accepts optional `fid` search param to view another profile in the future
 
-export default function ProfilePage() {
+function ProfilePageInner() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
   const [frameAdded, setFrameAdded] = useState(false);
   const addFrame = useAddFrame();
@@ -231,5 +231,13 @@ export default function ProfilePage() {
         </main>
       </div>
     </div>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={<div className="w-full max-w-md mx-auto px-4 py-6">Loading…</div>}>
+      <ProfilePageInner />
+    </Suspense>
   );
 }

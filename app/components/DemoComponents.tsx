@@ -3,7 +3,7 @@
 import { type ReactNode, useCallback, useMemo, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMiniKit } from "@coinbase/onchainkit/minikit";
-import { sdk } from "@farcaster/miniapp-sdk";
+import { sdk, quickAuth } from "@farcaster/miniapp-sdk";
 
 type ButtonProps = {
   children: ReactNode;
@@ -141,16 +141,15 @@ export function Features({ setActiveTab }: FeaturesProps) {
   );
 }
 
-type HomeProps = {
-  setActiveTab: (tab: string) => void;
-};
+type HomeProps = Record<string, never>;
 
-export function Home({ setActiveTab }: HomeProps) {
+export function Home({}: HomeProps) {
   const router = useRouter();
   const search = useSearchParams();
   const { context } = useMiniKit();
-  const isSignedIn = Boolean(context?.user && (context.user as any).fid);
-  const fid = isSignedIn ? (context!.user as any).fid : undefined;
+  const miniUser = (context?.user as { fid?: number } | undefined) || undefined;
+  const isSignedIn = typeof miniUser?.fid === "number";
+  const fid = miniUser?.fid;
 
   const [handle, setHandle] = useState("@username");
   const [category, setCategory] = useState("Builder");
@@ -197,17 +196,9 @@ export function Home({ setActiveTab }: HomeProps) {
 
   const handleSignIn = useCallback(async () => {
     try {
-      await sdk.actions.signIn({ acceptAuthAddress: true });
+      await quickAuth.getToken();
     } catch (e) {
       // swallow; UX stays on page
-      console.error(e);
-    }
-  }, []);
-
-  const handleAddMiniApp = useCallback(async () => {
-    try {
-      await sdk.actions.addMiniApp();
-    } catch (e) {
       console.error(e);
     }
   }, []);
@@ -220,7 +211,14 @@ export function Home({ setActiveTab }: HomeProps) {
   const handleRateNow = async () => {
     try {
       setIsSubmitting(true);
-      const body: any = {
+      type RateBody = {
+        ratedFid?: number;
+        handle?: string;
+        category: string;
+        score: number;
+        comment?: string;
+      };
+      const body: RateBody = {
         category,
         score,
         comment: comment || undefined,
@@ -249,7 +247,7 @@ export function Home({ setActiveTab }: HomeProps) {
       } else if (/^\d+$/.test(trimmed)) body.ratedFid = Number(trimmed);
       else if (trimmed) body.handle = trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
 
-      const raterFid = (context?.user as any)?.fid;
+      const raterFid = miniUser?.fid;
       const res = await fetch("/api/rate", {
         method: "POST",
         headers: {
@@ -415,7 +413,7 @@ export function Home({ setActiveTab }: HomeProps) {
                 onShare={handleShare}
                 onRateAnother={resetForm}
                 composing={isComposing}
-                isPreview
+                isPreview={isPreview}
                 detailsHref={detailsHref || undefined}
               />
             )}
@@ -497,6 +495,7 @@ export function Home({ setActiveTab }: HomeProps) {
                 onShare={handleShare}
                 onRateAnother={resetForm}
                 composing={isComposing}
+                isPreview={isPreview}
               />
             )}
           </div>
@@ -670,113 +669,3 @@ export function Icon({ name, size = "md", className = "" }: IconProps) {
     </span>
   );
 }
-
-type Todo = {
-  id: number;
-  text: string;
-  completed: boolean;
-}
-
-function TodoList() {
-  const [todos, setTodos] = useState<Todo[]>([
-    { id: 1, text: "Learn about MiniKit", completed: false },
-    { id: 2, text: "Build a Mini App", completed: true },
-    { id: 3, text: "Deploy to Base and go viral", completed: false },
-  ]);
-  const [newTodo, setNewTodo] = useState("");
-
-  const addTodo = () => {
-    if (newTodo.trim() === "") return;
-
-    const newId =
-      todos.length > 0 ? Math.max(...todos.map((t) => t.id)) + 1 : 1;
-    setTodos([...todos, { id: newId, text: newTodo, completed: false }]);
-    setNewTodo("");
-  };
-
-  const toggleTodo = (id: number) => {
-    setTodos(
-      todos.map((todo) =>
-        todo.id === id ? { ...todo, completed: !todo.completed } : todo,
-      ),
-    );
-  };
-
-  const deleteTodo = (id: number) => {
-    setTodos(todos.filter((todo) => todo.id !== id));
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      addTodo();
-    }
-  };
-
-  return (
-    <Card title="Get started">
-      <div className="space-y-4">
-        <div className="flex items-center space-x-2">
-          <input
-            type="text"
-            value={newTodo}
-            onChange={(e) => setNewTodo(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Add a new task..."
-            className="flex-1 px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--app-accent)]"
-          />
-          <Button
-            variant="primary"
-            size="md"
-            onClick={addTodo}
-            icon={<Icon name="plus" size="sm" />}
-          >
-            Add
-          </Button>
-        </div>
-
-        <ul className="space-y-2">
-          {todos.map((todo) => (
-            <li key={todo.id} className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <button
-                  type="button"
-                  id={`todo-${todo.id}`}
-                  onClick={() => toggleTodo(todo.id)}
-                  className={`w-5 h-5 rounded-full border flex items-center justify-center ${
-                    todo.completed
-                      ? "bg-[var(--app-accent)] border-[var(--app-accent)]"
-                      : "border-[var(--app-foreground-muted)] bg-transparent"
-                  }`}
-                >
-                  {todo.completed && (
-                    <Icon
-                      name="check"
-                      size="sm"
-                      className="text-[var(--app-background)]"
-                    />
-                  )}
-                </button>
-                <label
-                  htmlFor={`todo-${todo.id}`}
-                  className={`text-[var(--app-foreground-muted)] cursor-pointer ${todo.completed ? "line-through opacity-70" : ""}`}
-                >
-                  {todo.text}
-                </label>
-              </div>
-              <button
-                type="button"
-                onClick={() => deleteTodo(todo.id)}
-                className="text-[var(--app-foreground-muted)] hover:text-[var(--app-foreground)]"
-              >
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </Card>
-  );
-}
-
-
-// Removed TransactionCard component

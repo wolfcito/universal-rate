@@ -11,12 +11,14 @@ import {
 } from "@coinbase/onchainkit/transaction";
 import { parseEther } from "viem";
 
+import type { WarpcastVerification } from "@/lib/warpcast";
+
 type Entry = {
   rated_fid: number;
   avg_score: number;
   ratings_count: number;
   latest_at: string;
-  profile?: { fid: number; username?: string; display_name?: string; pfp_url?: string; custody_address?: string | null; verifications?: string[] } | null;
+  profile?: { fid: number; username?: string; display_name?: string; pfp_url?: string; custody_address?: string | null; verifications?: WarpcastVerification[] } | null;
 };
 
 export default function LeaderboardPage() {
@@ -45,8 +47,9 @@ export default function LeaderboardPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || "Failed to load leaderboard");
       setItems(json.items || []);
-    } catch (e: any) {
-      setError(e?.message || "Failed to load leaderboard");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Failed to load leaderboard";
+      setError(message);
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { sdk } from "@farcaster/miniapp-sdk";
 import {
@@ -10,7 +10,7 @@ import {
   WalletDropdownDisconnect,
 } from "@coinbase/onchainkit/wallet";
 import { Name, Identity, Avatar, Address, EthBalance } from "@coinbase/onchainkit/identity";
-import { Button, Icon } from "../components/DemoComponents";
+import { Button } from "../components/DemoComponents";
 
 function Card({ title, children }: { title?: string; children: React.ReactNode }) {
   return (
@@ -25,7 +25,7 @@ function Card({ title, children }: { title?: string; children: React.ReactNode }
   );
 }
 
-export default function ResultsPage() {
+function ResultsPageInner() {
   const router = useRouter();
   const params = useSearchParams();
   const handle = params.get("handle") || "@username";
@@ -39,7 +39,7 @@ export default function ResultsPage() {
 
   const [average, setAverage] = useState<number | null>(avgParam ? Number(avgParam) : null);
   const [count, setCount] = useState<number>(countParam ? Number(countParam) : 0);
-  const [window, setWindow] = useState<string>(windowParam);
+  const [statsWindow, setStatsWindow] = useState<string>(windowParam);
   const percentile = useMemo(() => 35, []);
   const [toast, setToast] = useState<null | { type: "success" | "error"; message: string }>(null);
 
@@ -49,19 +49,19 @@ export default function ResultsPage() {
     if (!average && ratedFid) {
       // Fetch latest stats if not provided in query
       const controller = new AbortController();
-      fetch(`/api/rate?ratedFid=${ratedFid}&category=${encodeURIComponent(category)}&window=${window}`, { signal: controller.signal })
+      fetch(`/api/rate?ratedFid=${ratedFid}&category=${encodeURIComponent(category)}&window=${statsWindow}`, { signal: controller.signal })
         .then(async (r) => ({ ok: r.ok, json: await r.json() }))
         .then(({ ok, json }) => {
           if (!ok) throw new Error(json?.error || "Failed to load stats");
           setAverage(typeof json.average === "number" ? json.average : null);
           setCount(typeof json.count === "number" ? json.count : 0);
-          setWindow(typeof json.window === "string" ? json.window : "7d");
+          setStatsWindow(typeof json.window === "string" ? json.window : "7d");
         })
         .catch(() => {})
         .finally(() => {});
       return () => controller.abort();
     }
-  }, [average, ratedFid, category, window]);
+  }, [average, ratedFid, category, statsWindow]);
 
   useEffect(() => {
     if (!toast) return;
@@ -69,17 +69,17 @@ export default function ResultsPage() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  const handleShare = useCallback(async () => {
+  const handleShare = async () => {
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_URL || (typeof window !== "undefined" ? window.location.origin : "");
+      const baseUrl = process.env.NEXT_PUBLIC_URL || (typeof window !== "undefined" ? globalThis.window.location.origin : "");
       const shareUrl = baseUrl ? `${baseUrl}` : "";
       const text = `${handle} got rated ${score}/10 in ${category}. What do you think? ${shareUrl}`;
       await sdk.actions.composeCast({ text });
       setToast({ type: "success", message: "Share composer opened" });
-    } catch (e) {
+    } catch {
       setToast({ type: "error", message: "Failed to open share composer" });
     }
-  }, [handle, score, category]);
+  };
 
   const handleRateAnother = () => router.push("/");
 
@@ -116,7 +116,7 @@ export default function ResultsPage() {
                   Comunidad: <strong>{average ?? "–"}/10</strong> {average !== null && <span>📈</span>}
                 </span>
               </div>
-              <div className="text-sm text-[var(--app-foreground-muted)]">{count} ratings en {window}</div>
+              <div className="text-sm text-[var(--app-foreground-muted)]">{count} ratings en {statsWindow}</div>
               <div className="text-sm text-[var(--app-foreground-muted)]">Tu percentil: {percentile}º</div>
               <div className="text-sm text-[var(--app-foreground-muted)]">
                 Distribución (última semana): 10 ███████  9 █████  8 ████  7 ██ ← tú
@@ -142,7 +142,7 @@ export default function ResultsPage() {
         <footer className="mt-2 pt-4 flex justify-center">
           <button
             className="text-[var(--ock-text-foreground-muted)] text-xs px-2 py-1 rounded hover:bg-[var(--app-accent-light)]"
-            onClick={() => (window.location.href = "/")}
+            onClick={() => router.push("/")}
           >
             Back to Home
           </button>
@@ -161,5 +161,12 @@ export default function ResultsPage() {
         </div>
       )}
     </div>
+  );
+}
+export default function ResultsPage() {
+  return (
+    <Suspense fallback={<div className="w-full max-w-md mx-auto px-4 py-6">Loading…</div>}>
+      <ResultsPageInner />
+    </Suspense>
   );
 }

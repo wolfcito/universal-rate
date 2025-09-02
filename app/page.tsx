@@ -5,29 +5,16 @@ import {
   useAddFrame,
   useOpenUrl,
 } from "@coinbase/onchainkit/minikit";
-import { sdk } from "@farcaster/miniapp-sdk";
+import { quickAuth } from "@farcaster/miniapp-sdk";
 import Link from "next/link";
-import {
-  Name,
-  Identity,
-  Address,
-  Avatar,
-  EthBalance,
-} from "@coinbase/onchainkit/identity";
-import {
-  ConnectWallet,
-  Wallet,
-  WalletDropdown,
-  WalletDropdownDisconnect,
-} from "@coinbase/onchainkit/wallet";
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "./components/DemoComponents";
 import { Icon } from "./components/DemoComponents";
 import { Home } from "./components/DemoComponents";
 import { Features } from "./components/DemoComponents";
 
-export default function App() {
+function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
   const [frameAdded, setFrameAdded] = useState(false);
   const [activeTab, setActiveTab] = useState("home");
@@ -59,7 +46,7 @@ export default function App() {
 
   const handleSignIn = useCallback(async () => {
     try {
-      await sdk.actions.signIn({ acceptAuthAddress: true });
+      await quickAuth.getToken();
     } catch (err) {
       console.error("Sign in failed", err);
     }
@@ -92,7 +79,8 @@ export default function App() {
     return null;
   }, [context, frameAdded, handleAddFrame]);
 
-  const isSignedIn = Boolean(context?.user && (context.user as any).fid);
+  const miniUser = (context?.user as { fid?: number } | undefined) || undefined;
+  const isSignedIn = typeof miniUser?.fid === "number";
 
   return (
     <div className="flex flex-col min-h-screen font-sans text-[var(--app-foreground)] mini-app-theme from-[var(--app-background)] to-[var(--app-gray)]">
@@ -119,7 +107,7 @@ export default function App() {
         )}
 
         <main className="flex-1">
-          {activeTab === "home" && <Home setActiveTab={setActiveTab} />}
+          {activeTab === "home" && <Home />}
           {activeTab === "features" && <Features setActiveTab={setActiveTab} />}
         </main>
 
@@ -135,5 +123,12 @@ export default function App() {
         </footer>
       </div>
     </div>
+  );
+}
+export default function Page() {
+  return (
+    <Suspense fallback={<div className="w-full max-w-md mx-auto px-4 py-6">Loading…</div>}>
+      <App />
+    </Suspense>
   );
 }

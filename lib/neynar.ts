@@ -19,8 +19,8 @@ async function fetchJson<T>(url: string): Promise<T> {
       accept: "application/json",
       // Try multiple common header variants just in case
       "api-key": key,
-      "api_key": key as unknown as any,
-      "x-api-key": key as unknown as any,
+      "api_key": key,
+      "x-api-key": key,
     },
     cache: "no-store",
   });
@@ -89,9 +89,9 @@ export async function resolveCastUrlToAuthorFid(url: string): Promise<number | n
     const fid = data?.cast?.author?.fid;
     if (fid && redis) await redis.set(cacheKey, fid, { ex: 60 * 60 * 12 });
     return fid ?? null;
-  } catch (e: any) {
+  } catch (e: unknown) {
     // If plan doesn't allow this endpoint, just return null to let caller decide UX
-    if (typeof e?.message === "string" && e.message.includes("PaymentRequired")) {
+    if (e instanceof Error && e.message.includes("PaymentRequired")) {
       return null;
     }
     throw e;

@@ -5,10 +5,11 @@ export const runtime = "nodejs";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { fid: string } },
+  context: { params: Promise<{ fid: string }> },
 ) {
   try {
-    const fid = Number(params.fid);
+    const { fid: fidParam } = await context.params;
+    const fid = Number(fidParam);
     if (!fid || Number.isNaN(fid)) {
       return NextResponse.json(
         { error: "Invalid fid parameter" },
@@ -51,7 +52,9 @@ export async function GET(
           { status: 500 },
         );
       }
-      const arr = (recvScores || []).map((r: any) => Number(r.score)).filter((n) => !Number.isNaN(n));
+      const arr = (recvScores || [])
+        .map((r: { score: number }) => Number(r.score))
+        .filter((n) => !Number.isNaN(n));
       recvAvg = arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
     }
 
@@ -82,7 +85,9 @@ export async function GET(
           { status: 500 },
         );
       }
-      const arr = (givenScores || []).map((r: any) => Number(r.score)).filter((n) => !Number.isNaN(n));
+      const arr = (givenScores || [])
+        .map((r: { score: number }) => Number(r.score))
+        .filter((n) => !Number.isNaN(n));
       givenAvg = arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
     }
 
@@ -109,10 +114,8 @@ export async function GET(
       given: { average: givenAvg, count: givenCount ?? 0 },
       recent: recent ?? [],
     });
-  } catch (e: any) {
-    return NextResponse.json(
-      { error: e?.message || "Unexpected error" },
-      { status: 500 },
-    );
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Unexpected error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

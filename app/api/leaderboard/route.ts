@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase";
-import { getUserByFid } from "@/lib/warpcast";
+import { getUserByFid, type WarpcastUser } from "@/lib/warpcast";
 
 export const runtime = "nodejs";
 
@@ -26,16 +26,19 @@ export async function GET(req: NextRequest) {
     });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    let items = (data || []) as Array<{
+    type BaseItem = {
       rated_fid: number;
       avg_score: number;
       ratings_count: number;
       latest_at: string;
-    }>;
+    };
+    type Item = BaseItem & { profile?: WarpcastUser | null };
+
+    let items: BaseItem[] = (data || []) as BaseItem[];
 
     if (resolve) {
-      const enriched = await Promise.all(
-        items.map(async (it) => {
+      const enriched: Item[] = await Promise.all(
+        items.map(async (it: BaseItem): Promise<Item> => {
           try {
             const u = await getUserByFid(Number(it.rated_fid));
             return { ...it, profile: u || null };
@@ -44,7 +47,8 @@ export async function GET(req: NextRequest) {
           }
         }),
       );
-      items = enriched as any;
+      // Replace with enriched entries including profiles
+      items = enriched;
     }
 
     return NextResponse.json({
@@ -52,9 +56,10 @@ export async function GET(req: NextRequest) {
       window,
       minCount,
       limit,
-      items,
+      items: items as Item[],
     });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Unexpected error" }, { status: 500 });
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Unexpected error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
