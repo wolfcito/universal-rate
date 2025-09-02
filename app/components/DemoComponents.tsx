@@ -346,7 +346,7 @@ export function Home({ setActiveTab }: HomeProps) {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <Card title="🎯 RateFrame">
+      <Card>
         {!isSignedIn ? (
           <div className="space-y-4">
             <p className="text-[var(--app-foreground-muted)]">
