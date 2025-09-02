@@ -21,5 +21,10 @@
       "miniapp"
     ],
     "ogTitle": "Universal Rate"
+  },
+  "accountAssociation": {
+    "header": "eyJmaWQiOjQ2NjA3MCwidHlwZSI6ImF1dGgiLCJrZXkiOiIweDY3MWYxODg3MjQ3NGIwMmYzMkMxNjQzRWRGODUxMGJFNmYyYmI0OTAifQ",
+    "payload": "eyJkb21haW4iOiJ1bml2ZXJzYWwtcmF0ZS52ZXJjZWwuYXBwIn0",
+    "signature": "kkZr1CXUjo9UDW/OxuryGMz01dusXWR4IzmU2P4wi58rIfQMLM/kWXf6aI+2NLxM+YcK0I8xI5NRYtbdQE/glBw="
   }
 }
