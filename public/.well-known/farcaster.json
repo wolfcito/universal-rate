@@ -5,17 +5,21 @@
     "iconUrl": "https://universal-rate.vercel.app/icon.jpeg",
     "homeUrl": "https://universal-rate.vercel.app",
     "imageUrl": "https://universal-rate.vercel.app/image.png",
-    "buttonTitle": "Notch",
+    "buttonTitle": "Notch it!",
     "splashImageUrl": "https://universal-rate.vercel.app/splash.png",
-    "splashBackgroundColor": "#ffffff",
+    "splashBackgroundColor": "#FFFFFF",
     "webhookUrl": "https://universal-rate.vercel.app/api/webhook",
     "subtitle": "Grow your reputation",
-    "description": "Rate → Unlock → Share → Rise. Build real reputation weekly.",
-    "primaryCategory": "social"
-  },
-  "accountAssociation": {
-    "header": "eyJmaWQiOjQ2NjA3MCwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDVCODE2RDdDMDA4YTc1RkE5RjBCNDRFODhlNkNCODhlMjEyMUJkZjMifQ",
-    "payload": "eyJkb21haW4iOiJ1bml2ZXJzYWwtcmF0ZS52ZXJjZWwuYXBwIn0",
-    "signature": "MHgwYjQyMTNiOWM5YTNmNDM1ZTcxZWM1ZDg0NGM5NjM2Njk5MTZhNzllZjA3ZTg3NjhhM2MwYjlhMjg1NTc5OGNiMTJkYjRlNzA5NTNiYjNjZGMyYmU3MzJiZjgwNTU1NjExZDQ4NjNkMGVlNThiMzUxNzBmMzdlM2RmYjI0YjA0YjFj"
+    "description": "Rate -> Unlock -> Share -> Rise. Build real reputation weekly.",
+    "primaryCategory": "social",
+    "screenshotUrls": [
+      "https://universal-rate.vercel.app/screenshot.png"
+    ],
+    "tags": [
+      "ratings",
+      "social",
+      "miniapp"
+    ],
+    "ogTitle": "Universal Rate"
   }
 }
