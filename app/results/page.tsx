@@ -68,7 +68,7 @@ function ResultsPageInner() {
       const data = encodeFunctionData({
         abi,
         functionName: "recordRating",
-        args: [ratedEth as `0x${string}`, Number(score) as any, categoryHash, commentHash],
+        args: [ratedEth as `0x${string}`, Number(score) as number, categoryHash, commentHash],
       });
       return [{ to: rateLogAddress, data, value: BigInt(0) }];
     } catch {
