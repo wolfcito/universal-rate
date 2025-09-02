@@ -15,6 +15,14 @@ export async function GET() {
   const header = process.env.FARCASTER_HEADER || "";
   const payload = process.env.FARCASTER_PAYLOAD || "";
   const signature = process.env.FARCASTER_SIGNATURE || "";
+  const allowedEnv =
+    process.env.BASE_BUILDER_ALLOWED_ADDRESSES ||
+    process.env.FARCASTER_BASE_BUILDER_ALLOWED_ADDRESSES ||
+    "";
+  const allowedAddresses = allowedEnv
+    .split(/[,\s]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
 
   const body = {
     frame: {
@@ -39,6 +47,9 @@ export async function GET() {
       header,
       payload,
       signature,
+    },
+    baseBuilder: {
+      allowedAddresses,
     },
   };
 
