@@ -31,7 +31,7 @@ export function Button({
 
   const variantClasses = {
     primary:
-      "bg-[var(--app-accent)] hover:bg-[var(--app-accent-hover)] text-[var(--app-background)]",
+      "bg-[var(--app-accent)] hover:bg-[var(--app-accent-hover)] text-white",
     secondary:
       "bg-[var(--app-gray)] hover:bg-[var(--app-gray-dark)] text-[var(--app-foreground)]",
     outline:
