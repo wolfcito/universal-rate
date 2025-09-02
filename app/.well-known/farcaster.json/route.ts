@@ -24,7 +24,7 @@ export async function GET() {
       homeUrl: url,
       imageUrl: `${url}/image.png`,
       buttonTitle: "Notch it!",
-      splashImageUrl: `${url}/splash.png",
+      splashImageUrl: `${url}/splash.png`,
       splashBackgroundColor: "#FFFFFF",
       webhookUrl: `${url}/api/webhook`,
       subtitle: "Grow your reputation",
@@ -46,4 +46,3 @@ export async function GET() {
     headers: { "content-type": "application/json; charset=utf-8" },
   });
 }
-
