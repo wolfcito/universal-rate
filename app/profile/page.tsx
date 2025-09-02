@@ -89,6 +89,30 @@ export default function ProfilePage() {
   const pfpUrl = profile?.pfpUrl;
   const bio = profile?.bio;
 
+  const [stats, setStats] = useState<{
+    received: { average: number | null; count: number };
+    given: { average: number | null; count: number };
+    recent: Array<{ id: string; rater_fid: number; score: number; category: string; comment?: string | null; created_at: string }>;
+    window: string;
+  } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fid = effectiveFid;
+    if (!fid) return;
+    setLoading(true);
+    setError(null);
+    fetch(`/api/profile/${fid}?window=30d`, { cache: "no-store" })
+      .then(async (r) => ({ ok: r.ok, json: await r.json() }))
+      .then(({ ok, json }) => {
+        if (!ok) throw new Error(json?.error || "Failed to load profile stats");
+        setStats(json);
+      })
+      .catch((e) => setError(e?.message || "Failed to load profile stats"))
+      .finally(() => setLoading(false));
+  }, [effectiveFid]);
+
   const openExternalProfile = useCallback(() => {
     if (username) {
       openUrl(`https://warpcast.com/${username}`);
@@ -166,24 +190,43 @@ export default function ProfilePage() {
 
           <section className="mt-4 grid grid-cols-3 gap-3">
             <div className="bg-[var(--app-card-bg)] rounded-lg border border-[var(--app-card-border)] p-3 text-center">
-              <div className="text-xl font-semibold">—</div>
+              <div className="text-xl font-semibold">
+                {loading ? "…" : stats ? stats.given.count : "—"}
+              </div>
               <div className="text-xs text-[var(--app-foreground-muted)]">Ratings Given</div>
             </div>
             <div className="bg-[var(--app-card-bg)] rounded-lg border border-[var(--app-card-border)] p-3 text-center">
-              <div className="text-xl font-semibold">—</div>
+              <div className="text-xl font-semibold">
+                {loading ? "…" : stats ? stats.received.count : "—"}
+              </div>
               <div className="text-xs text-[var(--app-foreground-muted)]">Ratings Received</div>
             </div>
             <div className="bg-[var(--app-card-bg)] rounded-lg border border-[var(--app-card-border)] p-3 text-center">
-              <div className="text-xl font-semibold">—</div>
-              <div className="text-xs text-[var(--app-foreground-muted)]">Percentile</div>
+              <div className="text-xl font-semibold">
+                {loading ? "…" : stats && stats.received.average != null ? Number(stats.received.average).toFixed(1) : "—"}
+              </div>
+              <div className="text-xs text-[var(--app-foreground-muted)]">Avg (30d)</div>
             </div>
           </section>
 
           <section className="mt-4 bg-[var(--app-card-bg)] rounded-lg border border-[var(--app-card-border)] p-4">
-            <h3 className="text-sm font-medium mb-2">About</h3>
-            <p className="text-sm text-[var(--app-foreground-muted)]">
-              This profile view uses MiniKit context. Hook up rating data and leaderboards per docs when backend is ready.
-            </p>
+            <h3 className="text-sm font-medium mb-2">Recent Ratings (received)</h3>
+            {error ? (
+              <p className="text-sm text-red-500">{error}</p>
+            ) : loading ? (
+              <p className="text-sm text-[var(--app-foreground-muted)]">Loading…</p>
+            ) : !stats || stats.recent.length === 0 ? (
+              <p className="text-sm text-[var(--app-foreground-muted)]">No recent ratings</p>
+            ) : (
+              <ul className="space-y-2">
+                {stats.recent.map((r) => (
+                  <li key={r.id} className="text-sm flex justify-between border-b border-[var(--app-card-border)] pb-1">
+                    <span>From {r.rater_fid} • {r.category}</span>
+                    <span className="font-semibold">{r.score}/10</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
         </main>
       </div>
