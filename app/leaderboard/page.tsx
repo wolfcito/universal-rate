@@ -34,7 +34,7 @@ export default function LeaderboardPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/leaderboard?category=${encodeURIComponent(category)}&window=${window}&limit=25&minCount=10&resolve=1`, { cache: "no-store" });
+      const res = await fetch(`/api/leaderboard?category=${encodeURIComponent(category)}&window=${window}&limit=25&minCount=1&resolve=1`, { cache: "no-store" });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || "Failed to load leaderboard");
       setItems(json.items || []);
