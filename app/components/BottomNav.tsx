@@ -17,11 +17,11 @@ export default function BottomNav() {
     <nav className="fixed bottom-0 left-0 right-0 border-t border-[var(--app-card-border)] bg-[var(--app-card-bg)] backdrop-blur-md">
       <div className="max-w-md mx-auto flex items-center justify-around px-4 py-2">
         <Link href="/" className={linkCls(pathname === "/")}>Home</Link>
-        <Link href="/profile" className={linkCls(pathname?.startsWith("/profile") ?? false)}>
-          Profile
-        </Link>
         <Link href="/leaderboard" className={linkCls(pathname?.startsWith("/leaderboard") ?? false)}>
           Leaderboard
+        </Link>
+        <Link href="/profile" className={linkCls(pathname?.startsWith("/profile") ?? false)}>
+          Profile
         </Link>
       </div>
       <div style={{ height: "env(safe-area-inset-bottom)" }} />
