@@ -3,13 +3,20 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useMiniKit, useAddFrame } from "@coinbase/onchainkit/minikit";
 import { Icon } from "../components/DemoComponents";
+import {
+  Transaction,
+  TransactionButton,
+  TransactionStatus,
+  TransactionStatusLabel,
+} from "@coinbase/onchainkit/transaction";
+import { parseEther } from "viem";
 
 type Entry = {
   rated_fid: number;
   avg_score: number;
   ratings_count: number;
   latest_at: string;
-  profile?: { fid: number; username?: string; display_name?: string; pfp_url?: string } | null;
+  profile?: { fid: number; username?: string; display_name?: string; pfp_url?: string; custody_address?: string | null; verifications?: string[] } | null;
 };
 
 export default function LeaderboardPage() {
@@ -102,8 +109,8 @@ export default function LeaderboardPage() {
         <div className="p-3 border-b border-[var(--app-card-border)] text-xs text-[var(--app-foreground-muted)] flex justify-between">
           <span>Rank</span>
           <span>User</span>
-          <span>Avg</span>
-          <span>Count</span>
+          <span className="w-14 text-right">Avg</span>
+          <span>Support</span>
         </div>
         {loading ? (
           <div className="p-4 text-sm text-[var(--app-foreground-muted)]">Loading…</div>
@@ -113,24 +120,57 @@ export default function LeaderboardPage() {
           <div className="p-4 text-sm text-[var(--app-foreground-muted)]">No entries yet</div>
         ) : (
           <ul>
-            {items.map((it, idx) => (
-              <li key={`${it.rated_fid}-${idx}`} className="px-3 py-2 text-sm flex items-center justify-between border-t border-[var(--app-card-border)]">
-                <span className="w-10">#{idx + 1}</span>
-                <span className="flex-1 flex items-center gap-2">
-                  {it.profile?.pfp_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={it.profile.pfp_url} alt="pfp" className="w-6 h-6 rounded-full" />
-                  ) : (
-                    <span className="w-6 h-6 rounded-full bg-[var(--app-gray)] inline-block" />)
-                  }
-                  <span>
-                    {it.profile?.username ? `@${it.profile.username}` : `FID:${it.rated_fid}`}
+            {items.map((it, idx) => {
+              const ver = it.profile?.verifications || [];
+              // Prefer primary Ethereum verification; then any Ethereum; then custody
+              const primaryEth = ver.find((v) => (v.protocol || '').toLowerCase() === 'ethereum' && v.isPrimary);
+              const anyEth = ver.find((v) => (v.protocol || '').toLowerCase() === 'ethereum');
+              const address = primaryEth?.address || anyEth?.address || it.profile?.custody_address || null;
+              const showTip = idx < 3 && Boolean(address);
+              const calls = showTip
+                ? [
+                    {
+                      to: address as `0x${string}`,
+                      data: "0x" as `0x${string}`,
+                      value: parseEther("0.00001"),
+                    },
+                  ]
+                : [];
+              return (
+                <li key={`${it.rated_fid}-${idx}`} className="px-3 py-2 text-sm flex items-center justify-between border-t border-[var(--app-card-border)]">
+                  <span className="w-10">#{idx + 1}</span>
+                  <span className="flex-1 flex items-center gap-2">
+                    {it.profile?.pfp_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={it.profile.pfp_url} alt="pfp" className="w-6 h-6 rounded-full" />
+                    ) : (
+                      <span className="w-6 h-6 rounded-full bg-[var(--app-gray)] inline-block" />
+                    )}
+                    <span>{it.profile?.username ? `@${it.profile.username}` : `FID:${it.rated_fid}`}</span>
                   </span>
-                </span>
-                <span className="w-14 text-right">{Number(it.avg_score).toFixed(2)}</span>
-                <span className="w-12 text-right">{it.ratings_count}</span>
-              </li>
-            ))}
+                  <span className="w-14 flex text-center">{Number(it.avg_score).toFixed(2)}</span>
+                  <span className="w-16 flex justify-end">
+                    {showTip ? (
+                      <Transaction calls={calls}>
+                        <TransactionButton className="text-xs px-1 py-1" text="Tip" />
+                        <TransactionStatus>
+                          <TransactionStatusLabel />
+                        </TransactionStatus>
+                      </Transaction>
+                    ) : idx < 3 ? (
+                      <button
+                        type="button"
+                        disabled
+                        title="No verified Ethereum address"
+                        className="text-xs px-2 py-1 rounded-full border border-[var(--app-card-border)] text-[var(--app-foreground-muted)] bg-[var(--app-gray)] cursor-not-allowed"
+                      >
+                        ?
+                      </button>
+                    ) : null}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
