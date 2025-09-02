@@ -43,9 +43,7 @@ export default function ResultsPage() {
   const percentile = useMemo(() => 35, []);
   const [toast, setToast] = useState<null | { type: "success" | "error"; message: string }>(null);
 
-  useEffect(() => {
-    sdk.actions.ready().catch(() => {});
-  }, []);
+  // ready() handled globally in AppReady
 
   useEffect(() => {
     if (!average && ratedFid) {
