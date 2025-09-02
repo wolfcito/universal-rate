@@ -24,32 +24,66 @@ export async function GET(
 
     const supabase = getSupabaseServer();
 
-    // Received aggregates
-    let recvQuery = supabase
+    // Received aggregates (avoid SQL aggregates to bypass PostgREST limitation)
+    let recvCountQuery = supabase
       .from("ratings")
-      .select("avg:score.avg(), count:score.count()")
+      .select("*", { count: "exact", head: true })
       .eq("rated_fid", fid);
-    if (since) recvQuery = recvQuery.gte("created_at", since);
-    const { data: recv, error: recvErr } = await recvQuery.single();
-    if (recvErr) {
+    if (since) recvCountQuery = recvCountQuery.gte("created_at", since as string);
+    const { count: recvCount, error: recvCountErr } = await recvCountQuery;
+    if (recvCountErr) {
       return NextResponse.json(
-        { error: `Received agg failed: ${recvErr.message}` },
+        { error: `Received count failed: ${recvCountErr.message}` },
         { status: 500 },
       );
     }
+    let recvAvg: number | null = null;
+    if ((recvCount ?? 0) > 0) {
+      let recvScoresQuery = supabase
+        .from("ratings")
+        .select("score")
+        .eq("rated_fid", fid);
+      if (since) recvScoresQuery = recvScoresQuery.gte("created_at", since as string);
+      const { data: recvScores, error: recvScoresErr } = await recvScoresQuery;
+      if (recvScoresErr) {
+        return NextResponse.json(
+          { error: `Received scores failed: ${recvScoresErr.message}` },
+          { status: 500 },
+        );
+      }
+      const arr = (recvScores || []).map((r: any) => Number(r.score)).filter((n) => !Number.isNaN(n));
+      recvAvg = arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+    }
 
     // Given aggregates
-    let givenQuery = supabase
+    let givenCountQuery = supabase
       .from("ratings")
-      .select("avg:score.avg(), count:score.count()")
+      .select("*", { count: "exact", head: true })
       .eq("rater_fid", fid);
-    if (since) givenQuery = givenQuery.gte("created_at", since);
-    const { data: given, error: givenErr } = await givenQuery.single();
-    if (givenErr) {
+    if (since) givenCountQuery = givenCountQuery.gte("created_at", since as string);
+    const { count: givenCount, error: givenCountErr } = await givenCountQuery;
+    if (givenCountErr) {
       return NextResponse.json(
-        { error: `Given agg failed: ${givenErr.message}` },
+        { error: `Given count failed: ${givenCountErr.message}` },
         { status: 500 },
       );
+    }
+    let givenAvg: number | null = null;
+    if ((givenCount ?? 0) > 0) {
+      let givenScoresQuery = supabase
+        .from("ratings")
+        .select("score")
+        .eq("rater_fid", fid);
+      if (since) givenScoresQuery = givenScoresQuery.gte("created_at", since as string);
+      const { data: givenScores, error: givenScoresErr } = await givenScoresQuery;
+      if (givenScoresErr) {
+        return NextResponse.json(
+          { error: `Given scores failed: ${givenScoresErr.message}` },
+          { status: 500 },
+        );
+      }
+      const arr = (givenScores || []).map((r: any) => Number(r.score)).filter((n) => !Number.isNaN(n));
+      givenAvg = arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
     }
 
     // Recent received ratings (last 5)
@@ -71,14 +105,8 @@ export async function GET(
     return NextResponse.json({
       fid,
       window,
-      received: {
-        average: recv?.avg ?? null,
-        count: recv?.count ?? 0,
-      },
-      given: {
-        average: given?.avg ?? null,
-        count: given?.count ?? 0,
-      },
+      received: { average: recvAvg, count: recvCount ?? 0 },
+      given: { average: givenAvg, count: givenCount ?? 0 },
       recent: recent ?? [],
     });
   } catch (e: any) {
@@ -88,4 +116,3 @@ export async function GET(
     );
   }
 }
-
